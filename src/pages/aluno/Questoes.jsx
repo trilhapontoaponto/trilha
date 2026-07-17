@@ -8,20 +8,46 @@ import {
   agendarRevisaoMateria,
   listarRevisoesMateriaPendentes,
   marcarRevisaoMateriaFeita,
+  buscarResumoDesempenho,
 } from '../../lib/topicos.js'
 
 const QUANTIDADES = [3, 5, 7, 10]
 const QUANTIDADE_REVISAO = 10
+const QUANTIDADE_SUGESTAO = 5
 
 // Enunciados de questões extraídas de provas reais podem trazer um prefixo
 // "[Texto: fonte]" indicando de qual texto-base a assertiva depende.
-// Isso separa esse prefixo do resto do enunciado para exibição destacada.
 function separarTextoApoio(enunciado) {
   const match = enunciado.match(/^\[Texto:\s*([^\]]+)\]\s*(.*)$/s)
   if (match) {
     return { fonte: match[1], assertiva: match[2] }
   }
   return { fonte: null, assertiva: enunciado }
+}
+
+// Lista de revisão pós-exercício: cada questão com certo/errado e a
+// explicação, quando existir.
+function ListaRevisao({ questoes, respostas }) {
+  return (
+    <div className="lista-revisao">
+      <h2>Revisão das questões</h2>
+      {questoes.map((q, i) => {
+        const respostaAluno = respostas[q.id]
+        const acertou = respostaAluno === q.gabarito
+        const { fonte, assertiva } = separarTextoApoio(q.enunciado)
+        return (
+          <div key={q.id} className={`bloco-revisao ${acertou ? 'revisao-certa' : 'revisao-errada'}`}>
+            {fonte && <p className="texto-apoio-tag">📖 {fonte}</p>}
+            <p>{i + 1}. {assertiva}</p>
+            <p className="revisao-status">
+              {acertou ? '✔ Você acertou' : '✘ Você errou'} — resposta correta: {q.gabarito ? 'Certo' : 'Errado'}
+            </p>
+            {q.explicacao && <p className="revisao-explicacao">{q.explicacao}</p>}
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 export default function Questoes({ usuario }) {
@@ -32,14 +58,16 @@ export default function Questoes({ usuario }) {
   const [revisoes, setRevisoes] = useState([])
   const [carregando, setCarregando] = useState(true)
 
+  // --- resumo de desempenho + sugestão ---
+  const [resumo, setResumo] = useState(null)
+
   // --- modo "resolver questões" (por matéria) ---
   const [materias, setMaterias] = useState([])
   const [materiaSelecionada, setMateriaSelecionada] = useState('')
   const [quantidadeSelecionada, setQuantidadeSelecionada] = useState(QUANTIDADES[0])
   const [gerando, setGerando] = useState(false)
 
-  // --- exercício em andamento (agendado por tópico OU por matéria) ---
-  // simuladoAtivo.tipo: 'topico' | 'materia'
+  // --- exercício em andamento ---
   const [simuladoAtivo, setSimuladoAtivo] = useState(null)
   const [questoes, setQuestoes] = useState([])
   const [respostas, setRespostas] = useState({})
@@ -48,7 +76,7 @@ export default function Questoes({ usuario }) {
 
   async function carregarPendentes() {
     setCarregando(true)
-    const [{ data: dadosSimulados }, dadosRevisoes] = await Promise.all([
+    const [{ data: dadosSimulados }, dadosRevisoes, dadosResumo] = await Promise.all([
       supabase
         .from('simulados')
         .select('id, topico_id, data_agendada, topicos(nome, materias(nome))')
@@ -57,10 +85,12 @@ export default function Questoes({ usuario }) {
         .lte('data_agendada', new Date().toISOString())
         .order('data_agendada'),
       listarRevisoesMateriaPendentes(usuario.id),
+      buscarResumoDesempenho(usuario.id),
     ])
 
     setSimulados(dadosSimulados || [])
     setRevisoes(dadosRevisoes || [])
+    setResumo(dadosResumo)
     setCarregando(false)
   }
 
@@ -78,7 +108,7 @@ export default function Questoes({ usuario }) {
   async function iniciarSimuladoTopico(simulado) {
     const { data } = await supabase
       .from('questoes')
-      .select('id, enunciado, gabarito')
+      .select('id, enunciado, gabarito, explicacao')
       .eq('topico_id', simulado.topico_id)
       .eq('ativo', true)
 
@@ -119,6 +149,28 @@ export default function Questoes({ usuario }) {
       revisaoId: revisao.id,
       nomeMateria,
       titulo: `Revisão — ${nomeMateria}`,
+    })
+    setQuestoes(sorteadas)
+    setRespostas({})
+    setResultado(null)
+    setRevisaoAgendada(false)
+    setGerando(false)
+  }
+
+  // Atalho a partir da sugestão "você está errando mais em X" — já entra
+  // direto na prática, sem precisar passar pela aba "Resolver questões".
+  async function praticarMateriaSugerida() {
+    if (!resumo?.materiaSugerida) return
+    setGerando(true)
+    const { materiaId, materiaNome } = resumo.materiaSugerida
+    const sorteadas = await buscarQuestoesPorMateria(materiaId, QUANTIDADE_SUGESTAO)
+
+    setMateriaSelecionada(materiaId)
+    setSimuladoAtivo({
+      tipo: 'materia',
+      materiaId,
+      nomeMateria: materiaNome,
+      titulo: `Reforço — ${materiaNome}`,
     })
     setQuestoes(sorteadas)
     setRespostas({})
@@ -215,6 +267,8 @@ export default function Questoes({ usuario }) {
             <button onClick={handleAgendarRevisao}>Agendar revisão da matéria</button>
           )}
           <button onClick={voltar}>Voltar</button>
+
+          <ListaRevisao questoes={questoes} respostas={respostas} />
         </div>
       )
     }
@@ -228,6 +282,8 @@ export default function Questoes({ usuario }) {
             : 'Precisa reforçar. Um novo simulado foi agendado para você.'}
         </p>
         <button onClick={voltar}>Voltar</button>
+
+        <ListaRevisao questoes={questoes} respostas={respostas} />
       </div>
     )
   }
@@ -276,10 +332,41 @@ export default function Questoes({ usuario }) {
     )
   }
 
-  // Tela principal: abas "Agendados" / "Resolver questões"
+  // Tela principal: resumo + abas "Agendados" / "Resolver questões"
   return (
     <div>
       <h1>Questões</h1>
+
+      {resumo && resumo.total > 0 && (
+        <>
+          <div className="grade-cartoes resumo-cartoes">
+            <div className="cartao">
+              <span className="cartao-numero">{resumo.total}</span>
+              <span>resolvidas</span>
+            </div>
+            <div className="cartao">
+              <span className="cartao-numero">{resumo.acertos}</span>
+              <span>acertos</span>
+            </div>
+            <div className="cartao cartao-erro">
+              <span className="cartao-numero">{resumo.erros}</span>
+              <span>erros</span>
+            </div>
+          </div>
+
+          {resumo.materiaSugerida && (
+            <div className="sugestao-erro">
+              <p>
+                Você está errando mais em <strong>{resumo.materiaSugerida.materiaNome}</strong>
+                {' '}({resumo.materiaSugerida.erros} {resumo.materiaSugerida.erros === 1 ? 'erro' : 'erros'}).
+              </p>
+              <button onClick={praticarMateriaSugerida} disabled={gerando}>
+                {gerando ? 'Gerando…' : 'Praticar agora'}
+              </button>
+            </div>
+          )}
+        </>
+      )}
 
       <div className="tabs">
         <button
