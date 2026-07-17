@@ -1,8 +1,17 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase.js'
-import { finalizarSimulado, listarMaterias, buscarQuestoesAvulsas } from '../../lib/topicos.js'
+import {
+  finalizarSimulado,
+  listarMaterias,
+  buscarQuestoesPorMateria,
+  finalizarExercicioMateria,
+  agendarRevisaoMateria,
+  listarRevisoesMateriaPendentes,
+  marcarRevisaoMateriaFeita,
+} from '../../lib/topicos.js'
 
-const QUANTIDADES_AVULSO = [3, 5, 7, 10]
+const QUANTIDADES = [3, 5, 7, 10]
+const QUANTIDADE_REVISAO = 10
 
 // Enunciados de questões extraídas de provas reais podem trazer um prefixo
 // "[Texto: fonte]" indicando de qual texto-base a assertiva depende.
@@ -16,35 +25,42 @@ function separarTextoApoio(enunciado) {
 }
 
 export default function Questoes({ usuario }) {
-  const [aba, setAba] = useState('agendados') // 'agendados' | 'avulso'
+  const [aba, setAba] = useState('agendados') // 'agendados' | 'resolver'
 
-  // --- estado do modo "agendados" ---
+  // --- modo "agendados" (simulados por tópico + revisões de matéria) ---
   const [simulados, setSimulados] = useState([])
+  const [revisoes, setRevisoes] = useState([])
   const [carregando, setCarregando] = useState(true)
 
-  // --- estado do modo "avulso" ---
+  // --- modo "resolver questões" (por matéria) ---
   const [materias, setMaterias] = useState([])
   const [materiaSelecionada, setMateriaSelecionada] = useState('')
-  const [quantidadeSelecionada, setQuantidadeSelecionada] = useState(QUANTIDADES_AVULSO[0])
-  const [gerandoAvulso, setGerandoAvulso] = useState(false)
+  const [quantidadeSelecionada, setQuantidadeSelecionada] = useState(QUANTIDADES[0])
+  const [gerando, setGerando] = useState(false)
 
-  // --- estado comum ao simulado em andamento (agendado ou avulso) ---
-  const [simuladoAtivo, setSimuladoAtivo] = useState(null) // { id, topico_id, topicos, avulso: bool }
+  // --- exercício em andamento (agendado por tópico OU por matéria) ---
+  // simuladoAtivo.tipo: 'topico' | 'materia'
+  const [simuladoAtivo, setSimuladoAtivo] = useState(null)
   const [questoes, setQuestoes] = useState([])
   const [respostas, setRespostas] = useState({})
   const [resultado, setResultado] = useState(null)
+  const [revisaoAgendada, setRevisaoAgendada] = useState(false)
 
   async function carregarPendentes() {
     setCarregando(true)
-    const { data } = await supabase
-      .from('simulados')
-      .select('id, topico_id, data_agendada, topicos(nome, materias(nome))')
-      .eq('usuario_id', usuario.id)
-      .eq('status', 'pendente')
-      .lte('data_agendada', new Date().toISOString())
-      .order('data_agendada')
+    const [{ data: dadosSimulados }, dadosRevisoes] = await Promise.all([
+      supabase
+        .from('simulados')
+        .select('id, topico_id, data_agendada, topicos(nome, materias(nome))')
+        .eq('usuario_id', usuario.id)
+        .eq('status', 'pendente')
+        .lte('data_agendada', new Date().toISOString())
+        .order('data_agendada'),
+      listarRevisoesMateriaPendentes(usuario.id),
+    ])
 
-    setSimulados(data || [])
+    setSimulados(dadosSimulados || [])
+    setRevisoes(dadosRevisoes || [])
     setCarregando(false)
   }
 
@@ -59,33 +75,56 @@ export default function Questoes({ usuario }) {
     })
   }, [])
 
-  async function iniciarSimulado(simulado) {
+  async function iniciarSimuladoTopico(simulado) {
     const { data } = await supabase
       .from('questoes')
       .select('id, enunciado, gabarito')
       .eq('topico_id', simulado.topico_id)
       .eq('ativo', true)
 
-    setSimuladoAtivo({ ...simulado, avulso: false })
+    setSimuladoAtivo({ tipo: 'topico', ...simulado })
     setQuestoes(data || [])
     setRespostas({})
     setResultado(null)
+    setRevisaoAgendada(false)
   }
 
-  async function iniciarSimuladoAvulso() {
+  async function iniciarResolverQuestoes() {
     if (!materiaSelecionada) return
-    setGerandoAvulso(true)
-    const sorteadas = await buscarQuestoesAvulsas(materiaSelecionada, quantidadeSelecionada)
+    setGerando(true)
+    const sorteadas = await buscarQuestoesPorMateria(materiaSelecionada, quantidadeSelecionada)
     const nomeMateria = materias.find((m) => m.id === materiaSelecionada)?.nome
 
     setSimuladoAtivo({
-      avulso: true,
-      topicos: { nome: `Simulado avulso — ${nomeMateria}` },
+      tipo: 'materia',
+      materiaId: materiaSelecionada,
+      nomeMateria,
+      titulo: `Resolver questões — ${nomeMateria}`,
     })
     setQuestoes(sorteadas)
     setRespostas({})
     setResultado(null)
-    setGerandoAvulso(false)
+    setRevisaoAgendada(false)
+    setGerando(false)
+  }
+
+  async function iniciarRevisaoMateria(revisao) {
+    setGerando(true)
+    const sorteadas = await buscarQuestoesPorMateria(revisao.materia_id, QUANTIDADE_REVISAO)
+    const nomeMateria = revisao.materias?.nome
+
+    setSimuladoAtivo({
+      tipo: 'materia',
+      materiaId: revisao.materia_id,
+      revisaoId: revisao.id,
+      nomeMateria,
+      titulo: `Revisão — ${nomeMateria}`,
+    })
+    setQuestoes(sorteadas)
+    setRespostas({})
+    setResultado(null)
+    setRevisaoAgendada(false)
+    setGerando(false)
   }
 
   function responder(questaoId, valor) {
@@ -93,6 +132,32 @@ export default function Questoes({ usuario }) {
   }
 
   async function handleFinalizar() {
+    if (simuladoAtivo.tipo === 'materia') {
+      const listaRespostas = questoes.map((q) => {
+        const respostaAluno = respostas[q.id]
+        return {
+          questaoId: q.id,
+          topicoId: q.topicos.id,
+          respostaAluno,
+          acertou: respostaAluno === q.gabarito,
+        }
+      })
+
+      const res = await finalizarExercicioMateria({
+        usuarioId: usuario.id,
+        materiaId: simuladoAtivo.materiaId,
+        respostas: listaRespostas,
+      })
+
+      if (simuladoAtivo.revisaoId) {
+        await marcarRevisaoMateriaFeita(simuladoAtivo.revisaoId)
+      }
+
+      setResultado({ ...res, tipo: 'materia' })
+      return
+    }
+
+    // tipo === 'topico'
     const listaRespostas = questoes.map((q) => {
       const respostaAluno = respostas[q.id]
       return {
@@ -102,54 +167,78 @@ export default function Questoes({ usuario }) {
       }
     })
 
-    // Simulado avulso não é persistido (não altera desempenho_topico nem
-    // conta como simulado "oficial" do tópico) — é só pra treino/preview.
-    if (simuladoAtivo.avulso) {
-      const total = listaRespostas.length
-      const acertos = listaRespostas.filter((r) => r.acertou).length
-      const nota = total > 0 ? (acertos / total) * 100 : 0
-      setResultado({ nota, dominou: nota >= 80, avulso: true })
-      return
-    }
-
     const res = await finalizarSimulado(
       { id: simuladoAtivo.id, usuario_id: usuario.id, topico_id: simuladoAtivo.topico_id },
       listaRespostas
     )
-    setResultado(res)
+    setResultado({ ...res, tipo: 'topico' })
+  }
+
+  async function handleAgendarRevisao() {
+    await agendarRevisaoMateria(usuario.id, simuladoAtivo.materiaId)
+    setRevisaoAgendada(true)
   }
 
   function voltar() {
     setSimuladoAtivo(null)
     setResultado(null)
+    setRevisaoAgendada(false)
     carregarPendentes()
   }
 
+  if (carregando) return <p className="status">Carregando…</p>
+
   // Tela de resultado
   if (resultado) {
+    if (resultado.tipo === 'materia') {
+      return (
+        <div>
+          <h1>Resultado</h1>
+          <div className="grade-cartoes resultado-cartoes">
+            <div className="cartao">
+              <span className="cartao-numero">{resultado.acertos}</span>
+              <span>acertos</span>
+            </div>
+            <div className="cartao cartao-erro">
+              <span className="cartao-numero">{resultado.erros}</span>
+              <span>erros</span>
+            </div>
+            <div className="cartao">
+              <span className="cartao-numero">{resultado.nota.toFixed(0)}%</span>
+              <span>nota</span>
+            </div>
+          </div>
+
+          {revisaoAgendada ? (
+            <p className="status ok">Revisão da matéria agendada.</p>
+          ) : (
+            <button onClick={handleAgendarRevisao}>Agendar revisão da matéria</button>
+          )}
+          <button onClick={voltar}>Voltar</button>
+        </div>
+      )
+    }
+
     return (
       <div>
         <h1>Resultado</h1>
         <p className={resultado.dominou ? 'status ok' : 'status erro'}>
-          Nota: {resultado.nota.toFixed(0)}%
-          {resultado.avulso
-            ? ' — simulado avulso (não afeta seu progresso no Meu Edital).'
-            : resultado.dominou
-              ? ' — Tópico dominado! Revisão agendada para daqui a 7 dias.'
-              : ' — Precisa reforçar. Um novo simulado foi agendado para você.'}
+          Nota: {resultado.nota.toFixed(0)}% — {resultado.dominou
+            ? 'Tópico dominado! Revisão agendada para daqui a 7 dias.'
+            : 'Precisa reforçar. Um novo simulado foi agendado para você.'}
         </p>
         <button onClick={voltar}>Voltar</button>
       </div>
     )
   }
 
-  // Tela do simulado em andamento
+  // Tela do exercício em andamento
   if (simuladoAtivo) {
     const todasRespondidas = questoes.length > 0 && questoes.every((q) => respostas[q.id] !== undefined)
 
     return (
       <div>
-        <h1>{simuladoAtivo.topicos?.nome}</h1>
+        <h1>{simuladoAtivo.titulo || simuladoAtivo.topicos?.nome}</h1>
 
         {questoes.length === 0 ? (
           <p className="status">Nenhuma questão cadastrada ainda para este tópico.</p>
@@ -179,7 +268,7 @@ export default function Questoes({ usuario }) {
               )
             })}
             <button onClick={handleFinalizar} disabled={!todasRespondidas}>
-              Finalizar simulado
+              Finalizar
             </button>
           </>
         )}
@@ -187,7 +276,7 @@ export default function Questoes({ usuario }) {
     )
   }
 
-  // Tela principal: abas "Agendados" / "Simulado avulso"
+  // Tela principal: abas "Agendados" / "Resolver questões"
   return (
     <div>
       <h1>Questões</h1>
@@ -200,43 +289,70 @@ export default function Questoes({ usuario }) {
           Agendados
         </button>
         <button
-          className={aba === 'avulso' ? 'tab-ativa' : ''}
-          onClick={() => setAba('avulso')}
+          className={aba === 'resolver' ? 'tab-ativa' : ''}
+          onClick={() => setAba('resolver')}
         >
-          Simulado avulso
+          Resolver questões
         </button>
       </div>
 
       {aba === 'agendados' && (
-        carregando ? (
-          <p className="status">Carregando questões…</p>
-        ) : simulados.length === 0 ? (
-          <p className="status">Nenhum simulado disponível no momento.</p>
-        ) : (
-          <table className="tabela">
-            <thead>
-              <tr>
-                <th>Matéria</th>
-                <th>Tópico</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {simulados.map((s) => (
-                <tr key={s.id}>
-                  <td>{s.topicos?.materias?.nome}</td>
-                  <td>{s.topicos?.nome}</td>
-                  <td>
-                    <button onClick={() => iniciarSimulado(s)}>Fazer simulado</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )
+        <>
+          {simulados.length === 0 && revisoes.length === 0 ? (
+            <p className="status">Nenhum simulado ou revisão disponível no momento.</p>
+          ) : (
+            <>
+              {simulados.length > 0 && (
+                <table className="tabela">
+                  <thead>
+                    <tr>
+                      <th>Matéria</th>
+                      <th>Tópico</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {simulados.map((s) => (
+                      <tr key={s.id}>
+                        <td>{s.topicos?.materias?.nome}</td>
+                        <td>{s.topicos?.nome}</td>
+                        <td>
+                          <button onClick={() => iniciarSimuladoTopico(s)}>Fazer simulado</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+              {revisoes.length > 0 && (
+                <table className="tabela">
+                  <thead>
+                    <tr>
+                      <th>Revisão de matéria</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {revisoes.map((r) => (
+                      <tr key={r.id}>
+                        <td>{r.materias?.nome}</td>
+                        <td>
+                          <button onClick={() => iniciarRevisaoMateria(r)} disabled={gerando}>
+                            Fazer revisão
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </>
+          )}
+        </>
       )}
 
-      {aba === 'avulso' && (
+      {aba === 'resolver' && (
         <div className="bloco-avulso">
           <label>
             Matéria
@@ -256,14 +372,14 @@ export default function Questoes({ usuario }) {
               value={quantidadeSelecionada}
               onChange={(e) => setQuantidadeSelecionada(Number(e.target.value))}
             >
-              {QUANTIDADES_AVULSO.map((n) => (
+              {QUANTIDADES.map((n) => (
                 <option key={n} value={n}>{n}</option>
               ))}
             </select>
           </label>
 
-          <button onClick={iniciarSimuladoAvulso} disabled={gerandoAvulso || !materiaSelecionada}>
-            {gerandoAvulso ? 'Gerando…' : 'Gerar simulado'}
+          <button onClick={iniciarResolverQuestoes} disabled={gerando || !materiaSelecionada}>
+            {gerando ? 'Gerando…' : 'Começar'}
           </button>
         </div>
       )}
