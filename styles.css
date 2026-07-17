@@ -1,0 +1,94 @@
+/* Trilha — CSS base do projeto
+   Fontes: Source Serif 4 (títulos) + IBM Plex Sans (corpo/interface)
+   Importar as fontes no <head> de cada página:
+   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500&family=Source+Serif+4:wght@600&display=swap" rel="stylesheet">
+*/
+
+:root {
+  --papel: oklch(98% 0.006 90);
+  --tinta: oklch(18% 0.015 260);
+  --azul: oklch(32% 0.09 258);
+  --ambar: oklch(52% 0.11 75);
+  --grafite: oklch(55% 0.01 260);
+
+  --fonte-titulo: 'Source Serif 4', serif;
+  --fonte-corpo: 'IBM Plex Sans', sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background: var(--papel);
+  color: var(--tinta);
+  font-family: var(--fonte-corpo);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: var(--fonte-titulo);
+  font-weight: 600;
+  color: var(--tinta);
+  letter-spacing: 0.01em;
+}
+
+a {
+  color: var(--azul);
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--azul);
+  outline-offset: 2px;
+}
+
+/* Marca (logo Trilha) — reutilizar em qualquer página */
+.marca {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.marca .simbolo {
+  width: 148px;
+  height: auto;
+  margin-bottom: 0.6rem;
+}
+
+.marca .nome {
+  font-family: var(--fonte-titulo);
+  font-weight: 600;
+  font-size: 2.1rem;
+  color: var(--tinta);
+  line-height: 1;
+}
+
+.marca .slogan {
+  font-family: var(--fonte-corpo);
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: var(--grafite);
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+/* Texto de status/apoio, usado em telas de teste e mensagens do sistema */
+.status {
+  font-family: var(--fonte-corpo);
+  font-size: 0.95rem;
+  color: var(--grafite);
+}
+
+.status.ok {
+  color: var(--azul);
+}

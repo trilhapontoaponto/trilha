@@ -7,25 +7,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500&family=Source+Serif+4:wght@600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
 <style>
-  :root {
-    --papel: oklch(98% 0.006 90);
-    --tinta: oklch(18% 0.015 260);
-    --azul: oklch(32% 0.09 258);
-    --ambar: oklch(52% 0.11 75);
-    --grafite: oklch(55% 0.01 260);
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  html, body {
-    height: 100%;
-  }
-
   body {
-    background: var(--papel);
-    color: var(--tinta);
-    font-family: 'IBM Plex Sans', sans-serif;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -35,45 +19,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2.5rem;
+    gap: 2rem;
     padding: 2rem;
-  }
-
-  .marca {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1.1rem;
-  }
-
-  .simbolo {
-    width: 148px;
-    height: auto;
-  }
-
-  .nome {
-    font-family: 'Source Serif 4', serif;
-    font-weight: 600;
-    font-size: 2.1rem;
-    letter-spacing: 0.01em;
-    color: var(--tinta);
-  }
-
-  .slogan {
-    font-family: 'IBM Plex Sans', sans-serif;
-    font-weight: 400;
-    font-size: 0.85rem;
-    color: var(--grafite);
-    letter-spacing: 0.03em;
-    margin-top: -0.5rem;
-  }
-
-  .saudacao {
-    font-family: 'IBM Plex Sans', sans-serif;
-    font-weight: 400;
-    font-size: 0.95rem;
-    color: var(--grafite);
-    letter-spacing: 0.02em;
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -101,7 +48,36 @@
       <span class="nome">Trilha</span>
       <span class="slogan">estudos de ponto a ponto.</span>
     </div>
-    <p class="saudacao">Hello world</p>
+
+    <p id="statusTeste" class="status">Conectando ao banco de dados…</p>
   </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    // ⚠️ Substituir pelos dados reais do projeto Supabase (Settings → API)
+    const SUPABASE_URL = "https://gusxctrzgtkxzxdbagrr.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_VjmPl2JDJ9cbDtrJY8dTQw_SvlFPSAX";
+
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const statusEl = document.getElementById("statusTeste");
+
+    async function testarConexao() {
+      const { data, error } = await supabase
+        .from("teste")
+        .select("teste_sucesso")
+        .limit(1)
+        .single();
+
+      if (error) {
+        statusEl.textContent = "Não foi possível conectar ao banco: " + error.message;
+        return;
+      }
+
+      statusEl.textContent = data.teste_sucesso;
+      statusEl.classList.add("ok");
+    }
+
+    testarConexao();
+  </script>
 </body>
 </html>
