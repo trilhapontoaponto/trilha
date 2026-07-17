@@ -75,6 +75,7 @@ export default function Questoes({ usuario }) {
   const [respostas, setRespostas] = useState({})
   const [resultado, setResultado] = useState(null)
   const [revisaoAgendada, setRevisaoAgendada] = useState(false)
+  const [revisaoSugestaoAgendada, setRevisaoSugestaoAgendada] = useState(false)
 
   async function carregarPendentes() {
     setCarregando(true)
@@ -210,6 +211,14 @@ export default function Questoes({ usuario }) {
     setResultado(null)
     setRevisaoAgendada(false)
     setGerando(false)
+  }
+
+  // Agenda a revisão da matéria sugerida sem precisar fazer o exercício
+  // agora — pra quem prefere só marcar pra depois.
+  async function agendarRevisaoSugerida() {
+    if (!resumo?.materiaSugerida) return
+    await agendarRevisaoMateria(usuario.id, resumo.materiaSugerida.materiaId)
+    setRevisaoSugestaoAgendada(true)
   }
 
   function responder(questaoId, valor) {
@@ -393,9 +402,18 @@ export default function Questoes({ usuario }) {
                 Você está errando mais em <strong>{resumo.materiaSugerida.materiaNome}</strong>
                 {' '}({resumo.materiaSugerida.erros} {resumo.materiaSugerida.erros === 1 ? 'erro' : 'erros'}).
               </p>
-              <button onClick={praticarMateriaSugerida} disabled={gerando}>
-                {gerando ? 'Gerando…' : 'Praticar agora'}
-              </button>
+              <div className="sugestao-erro-acoes">
+                <button onClick={praticarMateriaSugerida} disabled={gerando}>
+                  {gerando ? 'Gerando…' : 'Praticar agora'}
+                </button>
+                {revisaoSugestaoAgendada ? (
+                  <span className="status ok">Revisão agendada.</span>
+                ) : (
+                  <button className="botao-secundario" onClick={agendarRevisaoSugerida}>
+                    Agendar revisão
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </>
