@@ -83,3 +83,40 @@ export async function finalizarSimulado(simulado, respostas) {
 
   return { nota, dominou }
 }
+
+// Lista as matérias disponíveis para o simulado avulso.
+// OBS: por enquanto busca todas as matérias sem filtrar por concurso do aluno.
+// Quando o suporte multi-concurso estiver ativo na tela, filtrar aqui por
+// usuario.concurso_id (ou equivalente) para não misturar matérias de provas
+// diferentes.
+export async function listarMaterias() {
+  const { data, error } = await supabase
+    .from('materias')
+    .select('id, nome')
+    .order('nome')
+
+  if (error) throw error
+  return data || []
+}
+
+// Sorteia N questões ativas de qualquer tópico pertencente à matéria escolhida.
+// Usado no "simulado avulso": o aluno escolhe matéria + quantidade e o sistema
+// puxa questões aleatórias do banco daquela matéria (não fica preso a 1 tópico).
+export async function buscarQuestoesAvulsas(materiaId, quantidade) {
+  const { data, error } = await supabase
+    .from('questoes')
+    .select('id, enunciado, gabarito, topicos!inner(id, nome, materia_id)')
+    .eq('topicos.materia_id', materiaId)
+    .eq('ativo', true)
+
+  if (error) throw error
+
+  const todas = data || []
+  // embaralha (Fisher-Yates) e pega as N primeiras
+  for (let i = todas.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[todas[i], todas[j]] = [todas[j], todas[i]]
+  }
+
+  return todas.slice(0, quantidade)
+}
