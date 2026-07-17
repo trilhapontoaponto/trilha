@@ -467,6 +467,23 @@ button:hover:not(:disabled) {
   margin-top: 0;
 }
 
+.sugestao-erro-acoes {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.botao-secundario {
+  background: transparent;
+  border: 1px solid var(--azul);
+  color: var(--azul);
+}
+
+.botao-secundario:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.03);
+  filter: none;
+}
+
 /* Lista de revisão pós-exercício (certo/errado + explicação) */
 .lista-revisao {
   margin-top: 2.2rem;
