@@ -429,6 +429,16 @@ button:hover:not(:disabled) {
   font-weight: 600;
 }
 
+/* Tela de resultado do exercício por matéria */
+.resultado-cartoes {
+  max-width: 480px;
+  margin-bottom: 1.8rem;
+}
+
+.cartao-erro .cartao-numero {
+  color: #b3423a;
+}
+
 /* Questões do simulado */
 .bloco-questao {
   margin-bottom: 1.2rem;
