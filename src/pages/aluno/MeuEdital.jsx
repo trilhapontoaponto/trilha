@@ -84,8 +84,11 @@ export default function MeuEdital({ usuario }) {
       <h1>Meu edital</h1>
 
       {materias.map((materia) => (
-        <div key={materia.id} className="bloco-materia">
-          <h2>{materia.nome}</h2>
+        <details key={materia.id} className="accordion-materia">
+          <summary>
+            <span>{materia.nome}</span>
+            <span className="accordion-contagem">{materia.arvore.length} tópicos</span>
+          </summary>
 
           {materia.arvore.length === 0 ? (
             <p className="status">Nenhum tópico cadastrado ainda.</p>
@@ -130,7 +133,7 @@ export default function MeuEdital({ usuario }) {
               </tbody>
             </table>
           )}
-        </div>
+        </details>
       ))}
     </div>
   )
