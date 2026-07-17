@@ -199,26 +199,26 @@ export async function finalizarExercicioMateria({ usuarioId, materiaId, resposta
   return { nota, acertos, erros: total - acertos, total }
 }
 
-// Agenda uma revisão para a matéria inteira (não um tópico específico).
-export async function agendarRevisaoMateria(usuarioId, materiaId, dias = DIAS_REVISAO_SE_BOM) {
-  const dataAgendada = new Date()
-  dataAgendada.setDate(dataAgendada.getDate() + dias)
-
+// Agenda uma revisão para a matéria inteira (não um tópico específico), na
+// data/horário escolhidos pelo aluno.
+export async function agendarRevisaoMateria(usuarioId, materiaId, dataAgendadaISO) {
   await supabase.from('revisoes_materia').insert({
     usuario_id: usuarioId,
     materia_id: materiaId,
-    data_agendada: dataAgendada.toISOString(),
+    data_agendada: dataAgendadaISO,
     status: 'pendente',
   })
 }
 
-export async function listarRevisoesMateriaPendentes(usuarioId) {
+// Lista TODAS as revisões de matéria pendentes (passadas e futuras) — quem
+// consome decide o que mostrar como "disponível agora" comparando
+// data_agendada com a data atual.
+export async function listarRevisoesMateriaTodas(usuarioId) {
   const { data, error } = await supabase
     .from('revisoes_materia')
     .select('id, materia_id, data_agendada, materias(nome)')
     .eq('usuario_id', usuarioId)
     .eq('status', 'pendente')
-    .lte('data_agendada', new Date().toISOString())
     .order('data_agendada')
 
   if (error) throw error
