@@ -8,7 +8,7 @@ import {
   buscarQuestoesPorTopico,
   finalizarExercicioMateria,
   agendarRevisaoMateria,
-  listarRevisoesMateriaPendentes,
+  listarRevisoesMateriaTodas,
   marcarRevisaoMateriaFeita,
   buscarResumoDesempenho,
 } from '../../lib/topicos.js'
@@ -25,6 +25,60 @@ function separarTextoApoio(enunciado) {
     return { fonte: match[1], assertiva: match[2] }
   }
   return { fonte: null, assertiva: enunciado }
+}
+
+// Sugestão padrão pro seletor de data/horário: daqui a 7 dias, 9h da manhã.
+function sugestaoDataAgendamento() {
+  const d = new Date()
+  d.setDate(d.getDate() + 7)
+  d.setHours(9, 0, 0, 0)
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+  return d.toISOString().slice(0, 16)
+}
+
+function formatarDataHora(iso) {
+  return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+// Botão "Agendar revisão" com seletor de data/horário embutido. Usado tanto
+// no aviso de sugestão quanto na tela de resultado do exercício.
+function AgendarRevisaoInline({ usuarioId, materiaId, onAgendado }) {
+  const [aberto, setAberto] = useState(false)
+  const [dataEscolhida, setDataEscolhida] = useState(sugestaoDataAgendamento)
+  const [salvando, setSalvando] = useState(false)
+  const [feito, setFeito] = useState(false)
+
+  async function confirmar() {
+    setSalvando(true)
+    await agendarRevisaoMateria(usuarioId, materiaId, new Date(dataEscolhida).toISOString())
+    setSalvando(false)
+    setFeito(true)
+    setAberto(false)
+    onAgendado?.()
+  }
+
+  if (feito) return <span className="status ok">Revisão agendada para {formatarDataHora(dataEscolhida)}.</span>
+
+  if (!aberto) {
+    return (
+      <button className="botao-secundario" onClick={() => setAberto(true)}>
+        Agendar revisão
+      </button>
+    )
+  }
+
+  return (
+    <div className="agendar-revisao-inline">
+      <input
+        type="datetime-local"
+        value={dataEscolhida}
+        onChange={(e) => setDataEscolhida(e.target.value)}
+      />
+      <button onClick={confirmar} disabled={salvando}>
+        {salvando ? 'Agendando…' : 'Confirmar'}
+      </button>
+    </div>
+  )
 }
 
 // Lista de revisão pós-exercício: cada questão com certo/errado e a
@@ -74,8 +128,6 @@ export default function Questoes({ usuario }) {
   const [questoes, setQuestoes] = useState([])
   const [respostas, setRespostas] = useState({})
   const [resultado, setResultado] = useState(null)
-  const [revisaoAgendada, setRevisaoAgendada] = useState(false)
-  const [revisaoSugestaoAgendada, setRevisaoSugestaoAgendada] = useState(false)
 
   async function carregarPendentes() {
     setCarregando(true)
@@ -87,7 +139,7 @@ export default function Questoes({ usuario }) {
         .eq('status', 'pendente')
         .lte('data_agendada', new Date().toISOString())
         .order('data_agendada'),
-      listarRevisoesMateriaPendentes(usuario.id),
+      listarRevisoesMateriaTodas(usuario.id),
       buscarResumoDesempenho(usuario.id),
     ])
 
@@ -126,14 +178,12 @@ export default function Questoes({ usuario }) {
     setQuestoes(questoesTopico)
     setRespostas({})
     setResultado(null)
-    setRevisaoAgendada(false)
     setGerando(false)
   }
 
   useEffect(() => {
     if (location.state?.praticarTopico) {
       iniciarPraticaTopico(location.state.praticarTopico)
-      // limpa o state pra não reiniciar o exercício se o aluno voltar depois
       navigate(location.pathname, { replace: true, state: null })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -150,7 +200,6 @@ export default function Questoes({ usuario }) {
     setQuestoes(data || [])
     setRespostas({})
     setResultado(null)
-    setRevisaoAgendada(false)
   }
 
   async function iniciarResolverQuestoes() {
@@ -168,7 +217,6 @@ export default function Questoes({ usuario }) {
     setQuestoes(sorteadas)
     setRespostas({})
     setResultado(null)
-    setRevisaoAgendada(false)
     setGerando(false)
   }
 
@@ -187,7 +235,6 @@ export default function Questoes({ usuario }) {
     setQuestoes(sorteadas)
     setRespostas({})
     setResultado(null)
-    setRevisaoAgendada(false)
     setGerando(false)
   }
 
@@ -209,16 +256,7 @@ export default function Questoes({ usuario }) {
     setQuestoes(sorteadas)
     setRespostas({})
     setResultado(null)
-    setRevisaoAgendada(false)
     setGerando(false)
-  }
-
-  // Agenda a revisão da matéria sugerida sem precisar fazer o exercício
-  // agora — pra quem prefere só marcar pra depois.
-  async function agendarRevisaoSugerida() {
-    if (!resumo?.materiaSugerida) return
-    await agendarRevisaoMateria(usuario.id, resumo.materiaSugerida.materiaId)
-    setRevisaoSugestaoAgendada(true)
   }
 
   function responder(questaoId, valor) {
@@ -268,15 +306,9 @@ export default function Questoes({ usuario }) {
     setResultado({ ...res, tipo: 'topico' })
   }
 
-  async function handleAgendarRevisao() {
-    await agendarRevisaoMateria(usuario.id, simuladoAtivo.materiaId)
-    setRevisaoAgendada(true)
-  }
-
   function voltar() {
     setSimuladoAtivo(null)
     setResultado(null)
-    setRevisaoAgendada(false)
     carregarPendentes()
   }
 
@@ -301,11 +333,11 @@ export default function Questoes({ usuario }) {
             </div>
           </div>
 
-          {revisaoAgendada ? (
-            <p className="status ok">Revisão da matéria agendada.</p>
-          ) : (
-            <button onClick={handleAgendarRevisao}>Agendar revisão da matéria</button>
-          )}
+          <AgendarRevisaoInline
+            usuarioId={usuario.id}
+            materiaId={simuladoAtivo.materiaId}
+            onAgendado={carregarPendentes}
+          />
           <button onClick={voltar}>Voltar</button>
 
           <ListaRevisao questoes={questoes} respostas={respostas} />
@@ -406,13 +438,11 @@ export default function Questoes({ usuario }) {
                 <button onClick={praticarMateriaSugerida} disabled={gerando}>
                   {gerando ? 'Gerando…' : 'Praticar agora'}
                 </button>
-                {revisaoSugestaoAgendada ? (
-                  <span className="status ok">Revisão agendada.</span>
-                ) : (
-                  <button className="botao-secundario" onClick={agendarRevisaoSugerida}>
-                    Agendar revisão
-                  </button>
-                )}
+                <AgendarRevisaoInline
+                  usuarioId={usuario.id}
+                  materiaId={resumo.materiaSugerida.materiaId}
+                  onAgendado={carregarPendentes}
+                />
               </div>
             </div>
           )}
@@ -468,20 +498,29 @@ export default function Questoes({ usuario }) {
                   <thead>
                     <tr>
                       <th>Revisão de matéria</th>
+                      <th>Data agendada</th>
                       <th></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {revisoes.map((r) => (
-                      <tr key={r.id}>
-                        <td>{r.materias?.nome}</td>
-                        <td>
-                          <button onClick={() => iniciarRevisaoMateria(r)} disabled={gerando}>
-                            Fazer revisão
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {revisoes.map((r) => {
+                      const disponivel = new Date(r.data_agendada) <= new Date()
+                      return (
+                        <tr key={r.id}>
+                          <td>{r.materias?.nome}</td>
+                          <td>{formatarDataHora(r.data_agendada)}</td>
+                          <td>
+                            {disponivel ? (
+                              <button onClick={() => iniciarRevisaoMateria(r)} disabled={gerando}>
+                                Fazer revisão
+                              </button>
+                            ) : (
+                              <span className="status">Disponível em breve</span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               )}
