@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase.js'
 import {
   finalizarSimulado,
   listarMaterias,
   buscarQuestoesPorMateria,
+  buscarQuestoesPorTopico,
   finalizarExercicioMateria,
   agendarRevisaoMateria,
   listarRevisoesMateriaPendentes,
@@ -103,6 +105,37 @@ export default function Questoes({ usuario }) {
       setMaterias(lista)
       if (lista.length > 0) setMateriaSelecionada(lista[0].id)
     })
+  }, [])
+
+  // Chegada vinda da página Revisão: pratica um único tópico imediatamente,
+  // sem depender de nenhum simulado pré-agendado.
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  async function iniciarPraticaTopico(topico) {
+    setGerando(true)
+    const questoesTopico = await buscarQuestoesPorTopico(topico.id)
+
+    setSimuladoAtivo({
+      tipo: 'materia',
+      materiaId: topico.materiaId,
+      nomeMateria: topico.materiaNome,
+      titulo: `Praticar — ${topico.nome}`,
+    })
+    setQuestoes(questoesTopico)
+    setRespostas({})
+    setResultado(null)
+    setRevisaoAgendada(false)
+    setGerando(false)
+  }
+
+  useEffect(() => {
+    if (location.state?.praticarTopico) {
+      iniciarPraticaTopico(location.state.praticarTopico)
+      // limpa o state pra não reiniciar o exercício se o aluno voltar depois
+      navigate(location.pathname, { replace: true, state: null })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function iniciarSimuladoTopico(simulado) {
@@ -238,8 +271,6 @@ export default function Questoes({ usuario }) {
     carregarPendentes()
   }
 
-  if (carregando) return <p className="status">Carregando…</p>
-
   // Tela de resultado
   if (resultado) {
     if (resultado.tipo === 'materia') {
@@ -331,6 +362,8 @@ export default function Questoes({ usuario }) {
       </div>
     )
   }
+
+  if (carregando) return <p className="status">Carregando…</p>
 
   // Tela principal: resumo + abas "Agendados" / "Resolver questões"
   return (

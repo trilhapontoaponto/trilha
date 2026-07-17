@@ -46,10 +46,10 @@ export default function Dashboard({ usuario }) {
             <span className="cartao-numero">{resumo.dominado}</span>
             <span>Tópicos dominados</span>
           </div>
-          <div className="cartao">
+          <Link to="/revisao" className="cartao">
             <span className="cartao-numero">{resumo.reforcar}</span>
             <span>Tópicos para reforçar</span>
-          </div>
+          </Link>
           <Link to="/edital" className="cartao">
             <span>Ver meu edital completo →</span>
           </Link>

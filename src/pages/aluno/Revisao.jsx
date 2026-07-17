@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase.js'
 import { marcarComoEstudado } from '../../lib/topicos.js'
 
 export default function Revisao({ usuario }) {
   const [itens, setItens] = useState([])
   const [carregando, setCarregando] = useState(true)
+  const navigate = useNavigate()
 
   async function carregar() {
     setCarregando(true)
 
     const { data } = await supabase
       .from('desempenho_topico')
-      .select('topico_id, status, ultima_nota, proxima_acao_data, topicos(nome, materias(nome))')
+      .select('topico_id, status, ultima_nota, proxima_acao_data, topicos(nome, materia_id, materias(nome))')
       .eq('usuario_id', usuario.id)
       .in('status', ['reforcar', 'dominado'])
       .lte('proxima_acao_data', new Date().toISOString())
@@ -28,6 +30,22 @@ export default function Revisao({ usuario }) {
   async function handleMarcar(topicoId) {
     await marcarComoEstudado(usuario.id, topicoId)
     carregar()
+  }
+
+  // Leva pra Questões já com esse tópico carregado, sem precisar de simulado
+  // agendado nem espera — usa o mesmo mecanismo de "Resolver questões",
+  // restrito a este único tópico.
+  function handlePraticarAgora(item) {
+    navigate('/questoes', {
+      state: {
+        praticarTopico: {
+          id: item.topico_id,
+          nome: item.topicos?.nome,
+          materiaId: item.topicos?.materia_id,
+          materiaNome: item.topicos?.materias?.nome,
+        },
+      },
+    })
   }
 
   if (carregando) return <p className="status">Carregando revisões…</p>
@@ -47,6 +65,7 @@ export default function Revisao({ usuario }) {
               <th>Motivo</th>
               <th>Última nota</th>
               <th></th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -56,6 +75,9 @@ export default function Revisao({ usuario }) {
                 <td>{item.topicos?.nome}</td>
                 <td>{item.status === 'reforcar' ? 'Reforço (nota baixa)' : 'Revisão programada'}</td>
                 <td>{item.ultima_nota != null ? `${item.ultima_nota.toFixed(0)}%` : '—'}</td>
+                <td>
+                  <button onClick={() => handlePraticarAgora(item)}>Praticar agora</button>
+                </td>
                 <td>
                   <button onClick={() => handleMarcar(item.topico_id)}>
                     Marcar como estudado
