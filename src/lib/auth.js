@@ -2,7 +2,7 @@ import { supabase } from './supabase.js'
 
 const CHAVE_SESSAO = 'trilha_usuario'
 
-async function sha256(texto) {
+export async function sha256(texto) {
   const dados = new TextEncoder().encode(texto)
   const hashBuffer = await crypto.subtle.digest('SHA-256', dados)
   return Array.from(new Uint8Array(hashBuffer))
