@@ -439,6 +439,75 @@ button:hover:not(:disabled) {
   color: #b3423a;
 }
 
+/* Resumo de desempenho no topo da página Questões */
+.resumo-cartoes {
+  max-width: 480px;
+  margin-bottom: 1.2rem;
+}
+
+.sugestao-erro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  background: oklch(96% 0.02 75);
+  border-left: 3px solid var(--ambar);
+  border-radius: 0 8px 8px 0;
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 1.8rem;
+}
+
+.sugestao-erro p {
+  flex: 1;
+  min-width: 220px;
+  font-size: 0.95rem;
+}
+
+.sugestao-erro button {
+  margin-top: 0;
+}
+
+/* Lista de revisão pós-exercício (certo/errado + explicação) */
+.lista-revisao {
+  margin-top: 2.2rem;
+}
+
+.lista-revisao h2 {
+  font-size: 1.3rem;
+  margin-bottom: 1rem;
+}
+
+.bloco-revisao {
+  border-left: 3px solid transparent;
+  border-radius: 0 8px 8px 0;
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 0.9rem;
+  background: white;
+}
+
+.bloco-revisao.revisao-certa {
+  border-left-color: var(--azul);
+}
+
+.bloco-revisao.revisao-errada {
+  border-left-color: #b3423a;
+}
+
+.revisao-status {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--grafite);
+  margin-top: 0.4rem;
+}
+
+.revisao-explicacao {
+  font-size: 0.9rem;
+  color: var(--tinta);
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
 /* Questões do simulado */
 .bloco-questao {
   margin-bottom: 1.2rem;
