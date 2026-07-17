@@ -274,8 +274,52 @@ button:hover:not(:disabled) {
   font-size: 0.85rem;
 }
 
-.bloco-materia {
-  margin-bottom: 2rem;
+.accordion-materia {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  margin-bottom: 0.9rem;
+  padding: 0 1.1rem;
+  background: white;
+}
+
+.accordion-materia summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 1rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--fonte-titulo);
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.accordion-materia summary::-webkit-details-marker {
+  display: none;
+}
+
+.accordion-materia summary::before {
+  content: '›';
+  display: inline-block;
+  margin-right: 0.6rem;
+  transition: transform 0.15s ease;
+  font-size: 1.3rem;
+  color: var(--azul);
+}
+
+.accordion-materia[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.accordion-contagem {
+  font-family: var(--fonte-corpo);
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: var(--grafite);
+}
+
+.accordion-materia .tabela {
+  margin-bottom: 1.1rem;
 }
 
 .linha-principal {
