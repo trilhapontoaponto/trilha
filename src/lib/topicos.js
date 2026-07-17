@@ -87,9 +87,6 @@ export async function finalizarSimulado(simulado, respostas) {
 
 // Lista as matérias disponíveis para "Resolver questões".
 // OBS: por enquanto busca todas as matérias sem filtrar por concurso do aluno.
-// Quando o suporte multi-concurso estiver ativo na tela, filtrar aqui por
-// usuario.concurso_id (ou equivalente) para não misturar matérias de provas
-// diferentes.
 export async function listarMaterias() {
   const { data, error } = await supabase
     .from('materias')
@@ -102,18 +99,17 @@ export async function listarMaterias() {
 
 // Sorteia N questões ativas de qualquer tópico pertencente à matéria escolhida.
 // Cada questão retorna com o id do seu tópico real (necessário para atualizar
-// o desempenho granular ao finalizar o exercício).
+// o desempenho granular ao finalizar o exercício) e a explicação, se houver.
 export async function buscarQuestoesPorMateria(materiaId, quantidade) {
   const { data, error } = await supabase
     .from('questoes')
-    .select('id, enunciado, gabarito, topicos!inner(id, nome, materia_id)')
+    .select('id, enunciado, gabarito, explicacao, topicos!inner(id, nome, materia_id)')
     .eq('topicos.materia_id', materiaId)
     .eq('ativo', true)
 
   if (error) throw error
 
   const todas = data || []
-  // embaralha (Fisher-Yates) e pega as N primeiras
   for (let i = todas.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
     ;[todas[i], todas[j]] = [todas[j], todas[i]]
@@ -122,12 +118,25 @@ export async function buscarQuestoesPorMateria(materiaId, quantidade) {
   return todas.slice(0, quantidade)
 }
 
-// Finaliza uma sessão de "Resolver questões" por matéria (pode conter
-// questões de vários tópicos diferentes). Grava a sessão inteira em
-// exercicios_materia e, além disso, atualiza o desempenho_topico de CADA
-// tópico que apareceu na sessão — assim toda resposta, certa ou errada,
-// sempre conta para o desempenho real do aluno naquele ponto do edital, e a
-// nota da matéria nunca fica "solta" sem refletir nos tópicos que a compõem.
+// Busca todas as questões ativas de um único tópico (usado para praticar um
+// tópico específico sob demanda, sem depender de um simulado pré-agendado —
+// por exemplo, a partir de "tópicos a revisar" no Dashboard).
+export async function buscarQuestoesPorTopico(topicoId) {
+  const { data, error } = await supabase
+    .from('questoes')
+    .select('id, enunciado, gabarito, explicacao, topicos!inner(id, nome, materia_id)')
+    .eq('topico_id', topicoId)
+    .eq('ativo', true)
+
+  if (error) throw error
+  return data || []
+}
+
+// Finaliza uma sessão de "Resolver questões" (por matéria ou restrita a um
+// único tópico — nesse caso o materiaId ainda é necessário para o registro
+// em exercicios_materia). Cada resposta atualiza o desempenho_topico do
+// tópico real da questão, mesmo numa sessão que mistura vários tópicos —
+// nenhuma resposta certa ou errada fica de fora do cálculo de desempenho.
 export async function finalizarExercicioMateria({ usuarioId, materiaId, respostas }) {
   const total = respostas.length
   const acertos = respostas.filter((r) => r.acertou).length
@@ -156,7 +165,6 @@ export async function finalizarExercicioMateria({ usuarioId, materiaId, resposta
     }))
   )
 
-  // Agrupa as respostas pelo tópico real de cada questão.
   const porTopico = {}
   for (const r of respostas) {
     if (!porTopico[r.topicoId]) porTopico[r.topicoId] = []
@@ -204,7 +212,6 @@ export async function agendarRevisaoMateria(usuarioId, materiaId, dias = DIAS_RE
   })
 }
 
-// Lista as revisões de matéria pendentes e já no prazo.
 export async function listarRevisoesMateriaPendentes(usuarioId) {
   const { data, error } = await supabase
     .from('revisoes_materia')
@@ -220,4 +227,55 @@ export async function listarRevisoesMateriaPendentes(usuarioId) {
 
 export async function marcarRevisaoMateriaFeita(revisaoId) {
   await supabase.from('revisoes_materia').update({ status: 'feito' }).eq('id', revisaoId)
+}
+
+// Resumo geral de desempenho do aluno em questões objetivas, somando as
+// respostas dadas tanto em simulados por tópico quanto em exercícios por
+// matéria. Também aponta em qual matéria o aluno mais erra, para sugerir
+// prática direcionada.
+export async function buscarResumoDesempenho(usuarioId) {
+  const [{ data: viaSimulados, error: erro1 }, { data: viaExercicios, error: erro2 }] = await Promise.all([
+    supabase
+      .from('respostas_simulado')
+      .select('acertou, simulados!inner(usuario_id), questoes(topicos(materia_id, materias(nome)))')
+      .eq('simulados.usuario_id', usuarioId),
+    supabase
+      .from('respostas_exercicio_materia')
+      .select('acertou, exercicios_materia!inner(usuario_id, materia_id, materias(nome))')
+      .eq('exercicios_materia.usuario_id', usuarioId),
+  ])
+
+  if (erro1) throw erro1
+  if (erro2) throw erro2
+
+  const respostas = [
+    ...(viaSimulados || []).map((r) => ({
+      acertou: r.acertou,
+      materiaId: r.questoes?.topicos?.materia_id,
+      materiaNome: r.questoes?.topicos?.materias?.nome,
+    })),
+    ...(viaExercicios || []).map((r) => ({
+      acertou: r.acertou,
+      materiaId: r.exercicios_materia?.materia_id,
+      materiaNome: r.exercicios_materia?.materias?.nome,
+    })),
+  ]
+
+  const total = respostas.length
+  const acertos = respostas.filter((r) => r.acertou).length
+  const erros = total - acertos
+
+  const errosPorMateria = {}
+  for (const r of respostas) {
+    if (!r.acertou && r.materiaId) {
+      if (!errosPorMateria[r.materiaId]) {
+        errosPorMateria[r.materiaId] = { materiaId: r.materiaId, materiaNome: r.materiaNome, erros: 0 }
+      }
+      errosPorMateria[r.materiaId].erros += 1
+    }
+  }
+
+  const materiaSugerida = Object.values(errosPorMateria).sort((a, b) => b.erros - a.erros)[0] || null
+
+  return { total, acertos, erros, materiaSugerida }
 }
