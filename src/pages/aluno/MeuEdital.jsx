@@ -18,7 +18,7 @@ export default function MeuEdital({ usuario }) {
 
     const { data: materiasData } = await supabase
       .from('materias')
-      .select('id, nome, ordem, topicos(id, nome, ordem)')
+      .select('id, nome, ordem, topicos(id, nome, ordem, topico_pai_id)')
       .eq('concurso_id', usuario.concurso_id)
       .order('ordem')
 
@@ -31,14 +31,29 @@ export default function MeuEdital({ usuario }) {
       (desempenhos || []).map((d) => [d.topico_id, d.status])
     )
 
-    const materiasOrdenadas = (materiasData || []).map((m) => ({
-      ...m,
-      topicos: [...(m.topicos || [])]
+    const materiasMontadas = (materiasData || []).map((m) => {
+      const todos = m.topicos || []
+      const principais = todos
+        .filter((t) => !t.topico_pai_id)
         .sort((a, b) => a.ordem - b.ordem)
-        .map((t) => ({ ...t, status: statusPorTopico[t.id] || 'nao_iniciado' })),
-    }))
 
-    setMaterias(materiasOrdenadas)
+      const arvore = principais.map((principal) => {
+        const filhos = todos
+          .filter((t) => t.topico_pai_id === principal.id)
+          .sort((a, b) => a.ordem - b.ordem)
+          .map((f) => ({ ...f, status: statusPorTopico[f.id] || 'nao_iniciado' }))
+
+        return {
+          ...principal,
+          status: statusPorTopico[principal.id] || 'nao_iniciado',
+          filhos,
+        }
+      })
+
+      return { ...m, arvore }
+    })
+
+    setMaterias(materiasMontadas)
     setCarregando(false)
   }
 
@@ -72,7 +87,7 @@ export default function MeuEdital({ usuario }) {
         <div key={materia.id} className="bloco-materia">
           <h2>{materia.nome}</h2>
 
-          {materia.topicos.length === 0 ? (
+          {materia.arvore.length === 0 ? (
             <p className="status">Nenhum tópico cadastrado ainda.</p>
           ) : (
             <table className="tabela">
@@ -84,18 +99,33 @@ export default function MeuEdital({ usuario }) {
                 </tr>
               </thead>
               <tbody>
-                {materia.topicos.map((topico) => (
-                  <tr key={topico.id}>
-                    <td>{topico.nome}</td>
-                    <td>{ROTULO_STATUS[topico.status]}</td>
-                    <td>
-                      {topico.status === 'nao_iniciado' && (
-                        <button onClick={() => handleMarcar(topico.id)}>
-                          Marcar como estudado
-                        </button>
-                      )}
-                    </td>
-                  </tr>
+                {materia.arvore.map((principal) => (
+                  <>
+                    <tr key={principal.id}>
+                      <td className="linha-principal">{principal.nome}</td>
+                      <td>{principal.filhos.length === 0 ? ROTULO_STATUS[principal.status] : '—'}</td>
+                      <td>
+                        {principal.filhos.length === 0 && principal.status === 'nao_iniciado' && (
+                          <button onClick={() => handleMarcar(principal.id)}>
+                            Marcar como estudado
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                    {principal.filhos.map((filho) => (
+                      <tr key={filho.id}>
+                        <td className="linha-subtopico">{filho.nome}</td>
+                        <td>{ROTULO_STATUS[filho.status]}</td>
+                        <td>
+                          {filho.status === 'nao_iniciado' && (
+                            <button onClick={() => handleMarcar(filho.id)}>
+                              Marcar como estudado
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </>
                 ))}
               </tbody>
             </table>
