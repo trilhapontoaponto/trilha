@@ -155,3 +155,177 @@ button {
 button:hover:not(:disabled) {
   filter: brightness(1.1);
 }
+
+/* Layout com menu lateral */
+.layout {
+  display: flex;
+  min-height: 100%;
+}
+
+.menu-lateral {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--tinta);
+  color: var(--papel);
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem 1rem;
+  gap: 2rem;
+}
+
+.menu-marca-nome {
+  font-family: var(--fonte-titulo);
+  font-weight: 600;
+  font-size: 1.4rem;
+}
+
+.menu-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.menu-link {
+  color: var(--papel);
+  opacity: 0.75;
+  text-decoration: none;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.menu-link.ativo,
+.menu-link:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.menu-rodape {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.menu-sair {
+  background: transparent;
+  border: 1px solid var(--papel);
+  color: var(--papel);
+  margin-top: 0;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+.conteudo {
+  flex: 1;
+  padding: 2.5rem 3rem;
+  overflow-y: auto;
+}
+
+/* Formulário em linha, usado nas telas de cadastro do admin */
+.form-linha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  margin: 1.2rem 0;
+}
+
+.form-linha input,
+.form-linha select {
+  font-family: var(--fonte-corpo);
+  font-size: 0.95rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--grafite);
+  border-radius: 6px;
+  background: var(--papel);
+  color: var(--tinta);
+}
+
+.form-linha button {
+  margin-top: 0;
+}
+
+/* Tabelas de listagem */
+.tabela {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.tabela th,
+.tabela td {
+  text-align: left;
+  padding: 0.6rem 0.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  font-size: 0.9rem;
+}
+
+.tabela th {
+  color: var(--grafite);
+  font-weight: 500;
+}
+
+.tabela button {
+  margin-top: 0;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+.bloco-materia {
+  margin-bottom: 2rem;
+}
+
+/* Cartões do dashboard */
+.grade-cartoes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.cartao {
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  text-decoration: none;
+  color: var(--tinta);
+  font-size: 0.9rem;
+}
+
+.cartao-numero {
+  font-family: var(--fonte-titulo);
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+/* Questões do simulado */
+.bloco-questao {
+  margin-bottom: 1.2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.opcoes-questao {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.opcoes-questao button {
+  margin-top: 0;
+  background: transparent;
+  border: 1px solid var(--azul);
+  color: var(--azul);
+}
+
+.opcoes-questao button.opcao-selecionada {
+  background: var(--azul);
+  color: var(--papel);
+}
