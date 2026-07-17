@@ -102,3 +102,56 @@ input:focus-visible {
 .status.ok {
   color: var(--azul);
 }
+
+.status.erro {
+  color: #b3423a;
+}
+
+/* Formulário de login — reutilizável para outros formulários simples */
+.form-login {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+  max-width: 280px;
+}
+
+.form-login label {
+  font-size: 0.85rem;
+  color: var(--grafite);
+  margin-top: 0.6rem;
+}
+
+.form-login input {
+  font-family: var(--fonte-corpo);
+  font-size: 1rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--grafite);
+  border-radius: 6px;
+  background: var(--papel);
+  color: var(--tinta);
+}
+
+.form-login button,
+button {
+  font-family: var(--fonte-corpo);
+  font-weight: 500;
+  font-size: 0.95rem;
+  padding: 0.65rem 1rem;
+  margin-top: 1.2rem;
+  border: none;
+  border-radius: 6px;
+  background: var(--azul);
+  color: var(--papel);
+  cursor: pointer;
+}
+
+.form-login button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.form-login button:hover:not(:disabled),
+button:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
