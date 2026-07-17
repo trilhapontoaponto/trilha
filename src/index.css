@@ -484,6 +484,26 @@ button:hover:not(:disabled) {
   filter: none;
 }
 
+.agendar-revisao-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.agendar-revisao-inline input[type="datetime-local"] {
+  font-family: var(--fonte-corpo);
+  font-size: 0.9rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--grafite);
+  border-radius: 6px;
+  background: var(--papel);
+  color: var(--tinta);
+}
+
+.agendar-revisao-inline button {
+  margin-top: 0;
+}
+
 /* Lista de revisão pós-exercício (certo/errado + explicação) */
 .lista-revisao {
   margin-top: 2.2rem;
