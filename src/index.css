@@ -454,47 +454,82 @@ button:hover:not(:disabled) {
   color: var(--papel);
 }
 
+/* Abas (Agendados / Simulado avulso) — nav com sublinhado, no espírito da
+   marcação de accordion-materia (título serifado, acento em azul) */
 .tabs {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: 1.6rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  margin-bottom: 1.6rem;
 }
 
 .tabs button {
   background: none;
-  border: 1px solid #ccc;
-  border-radius: 6px 6px 0 0;
-  padding: 0.5rem 1rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  margin-top: 0;
+  padding: 0.55rem 0.1rem;
+  font-family: var(--fonte-corpo);
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: var(--grafite);
   cursor: pointer;
 }
 
-.tabs .tab-ativa {
-  background: #f0f0f0;
-  border-bottom: 2px solid #333;
-  font-weight: 600;
+.tabs button:hover:not(.tab-ativa) {
+  color: var(--tinta);
+  filter: none;
 }
 
+.tabs .tab-ativa {
+  color: var(--tinta);
+  font-weight: 600;
+  border-bottom-color: var(--azul);
+}
+
+/* Controles do simulado avulso — reaproveita a linguagem visual de .form-linha */
 .bloco-avulso {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 1.2rem;
   align-items: flex-end;
-  margin-bottom: 1.5rem;
+  margin: 0.5rem 0 2rem;
 }
 
 .bloco-avulso label {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.9rem;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--grafite);
 }
 
+.bloco-avulso select {
+  font-family: var(--fonte-corpo);
+  font-size: 0.95rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--grafite);
+  border-radius: 6px;
+  background: var(--papel);
+  color: var(--tinta);
+}
+
+.bloco-avulso button {
+  margin-top: 0;
+}
+
+/* Referência ao texto-base de uma questão — tratada como uma citação:
+   serifada, em itálico, com acento em âmbar para diferenciar do azul
+   já usado em links/botões. */
 .texto-apoio-tag {
-  font-size: 0.85rem;
+  font-family: var(--fonte-titulo);
   font-style: italic;
-  color: #555;
-  background: #f7f7f7;
-  border-left: 3px solid #999;
-  padding: 0.4rem 0.6rem;
-  margin-bottom: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--grafite);
+  background: oklch(96% 0.008 90);
+  border-left: 3px solid var(--ambar);
+  border-radius: 0 6px 6px 0;
+  padding: 0.55rem 0.8rem;
+  margin-bottom: 0.6rem;
 }
