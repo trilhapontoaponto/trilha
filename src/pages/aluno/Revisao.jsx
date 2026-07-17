@@ -11,12 +11,15 @@ export default function Revisao({ usuario }) {
   async function carregar() {
     setCarregando(true)
 
+    // "reforçar" aparece sempre, na hora — nunca faz sentido esperar pra
+    // mostrar um ponto fraco. "dominado" só aparece quando chega a data da
+    // revisão programada (repetição espaçada de verdade).
+    const agora = new Date().toISOString()
     const { data } = await supabase
       .from('desempenho_topico')
       .select('topico_id, status, ultima_nota, proxima_acao_data, topicos(nome, materia_id, materias(nome))')
       .eq('usuario_id', usuario.id)
-      .in('status', ['reforcar', 'dominado'])
-      .lte('proxima_acao_data', new Date().toISOString())
+      .or(`status.eq.reforcar,and(status.eq.dominado,proxima_acao_data.lte.${agora})`)
       .order('proxima_acao_data')
 
     setItens(data || [])
